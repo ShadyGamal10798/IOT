@@ -85,6 +85,7 @@ namespace IOT.TCPListner
                         fullPacket.Clear();
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
+                        Console.ReadKey();
                     }
                 }
             }
