@@ -19,6 +19,9 @@ namespace IOT.TCPListner
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                //int decValue = Convert.ToInt16("3836", 16);
+                //Console.WriteLine(decValue);
+
                 Console.WriteLine("To Start The Listener, Click Any Key : ");
                 Console.ReadKey();
 
