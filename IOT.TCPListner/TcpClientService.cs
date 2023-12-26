@@ -17,6 +17,7 @@ namespace IOT.TCPListner
 
         public async Task Run()
         {
+
             using (_client)
             using (var stream = _client.GetStream())
             {
@@ -107,7 +108,7 @@ namespace IOT.TCPListner
 
             //UnLock
             //00000000000000140C01050000000C7365746469676F75742030310100007E84
-                        var byteCommand = HexStringToByteArray("00000000000000140C01050000000C7365746469676F75742030310100007E84");
+            var byteCommand = HexStringToByteArray("00000000000000140C01050000000C7365746469676F75742031300100002ED4");
             await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
 
             // Read and print response after sending command
