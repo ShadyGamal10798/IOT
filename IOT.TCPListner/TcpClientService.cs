@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Net.Sockets;
 using Teltonika.Codec;
 using Teltonika.Codec.Model;
@@ -19,8 +20,6 @@ namespace IOT.TCPListner
             using (_client)
             using (var stream = _client.GetStream())
             {
-                
-
                 Console.WriteLine(DateTime.Now + " Received connection request from " + _client.Client.RemoteEndPoint);
 
                 var fullPacket = new List<byte>(); // Vector
@@ -33,22 +32,15 @@ namespace IOT.TCPListner
                 // Loop to receive all the data sent by the client.
                 while ((length = await stream.ReadAsync(bytes, 0, bytes.Length)) != 0)
                 {
-                    Console.WriteLine("Imei\n");
-                    Console.WriteLine(string.Format("{0} - received [{1}]", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray())));
-
-                    
-
+                    Console.WriteLine(string.Format("\n {0} - received [{1}] -> [{2}] \n", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()) , GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray())) ));
                     byte[] response;
-
                     if (!connected)
                     {
                         // Accept imei
                         response = new byte[] { 01 };
                         connected = true;
                         await stream.WriteAsync(response, 0, response.Length);
-
                         Array.Clear(bytes, 0, bytes.Length);
-
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
                     }
                     else
@@ -88,11 +80,13 @@ namespace IOT.TCPListner
 
                         avlDataLength = null;
                         fullPacket.Clear();
+                        CalcMemory();
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
                         SendCommand(stream, string.Join("", response.Select(x => x.ToString("X2")).ToArray()));
                         Console.ReadKey();
                     }
+
                 }
             }
         }
@@ -106,32 +100,22 @@ namespace IOT.TCPListner
         }
         private static async Task SendCommand(NetworkStream stream , string str)
         {
-            // Step 1: Send 01
-            //var responseAck = new byte[] { 0x01 };
-            //await stream.WriteAsync(responseAck, 0, responseAck.Length);
 
-            //// Read and print response after sending 01
-            //byte[] ackResponseBuffer = new byte[1];
-            //await stream.ReadAsync(ackResponseBuffer, 0, ackResponseBuffer.Length);
-            //Console.WriteLine($"Response after sending 01: {BitConverter.ToString(ackResponseBuffer)}");
+            //  Send command
+            // Lock
+            //00000000000000140C01050000000C7365746469676F75742031300100002ED4
 
-            //// Step 2: Send 00000009
-            //var countCommand = HexStringToByteArray(str);
-            //await stream.WriteAsync(countCommand, 0, countCommand.Length);
-
-            //// Read and print response after sending 00000009
-            //byte[] countResponseBuffer = new byte[100];
-            //await stream.ReadAsync(countResponseBuffer, 0, countResponseBuffer.Length);
-            //Console.WriteLine($"Response after sending count: {BitConverter.ToString(countResponseBuffer)}");
-
-            // Step 3: Send command
-            var byteCommand = HexStringToByteArray("00000000000000180C0105000000107365746469676F757420313020322030010000DAF8");
+            //UnLock
+            //00000000000000140C01050000000C7365746469676F75742030310100007E84
+                        var byteCommand = HexStringToByteArray("00000000000000140C01050000000C7365746469676F75742030310100007E84");
             await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
 
             // Read and print response after sending command
             byte[] commandResponseBuffer = new byte[100];
             await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
             Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
+            
+            Console.WriteLine(DecodeTcpPacket(commandResponseBuffer).AvlData);
         }
 
         static byte[] HexStringToByteArray(string hex)
@@ -152,6 +136,36 @@ namespace IOT.TCPListner
             }
 
             return Convert.ToByte(hex, 16);
+        }
+
+        static void CalcMemory()
+        {
+            Process currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+            long totalBytesOfMemoryUsed = currentProcess.WorkingSet64;
+
+            double totalMegabytes = (double)totalBytesOfMemoryUsed / (1024 * 1024);
+            Console.WriteLine($"Total Memory Usage: {totalMegabytes} MB");
+
+            //var n0 = System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64;
+            //var n1 = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64;
+            //var n2 = System.Diagnostics.Process.GetCurrentProcess().VirtualMemorySize64;
+
+            //float f0 = ((float)n0) / (1024 * 1024);
+            //float f1 = ((float)n1) / (1024 * 1024);
+            //float f2 = ((float)n2) / (1024 * 1024);
+            //Console.WriteLine("private = " + f0 + " MB");
+            //Console.WriteLine("working = " + f1 + " MB");
+            //Console.WriteLine("virtual = " + f2 + " MB");
+        }
+
+        static string GetIMEI(string IMEI)
+        {
+            string ans="";
+            for (int i = 5; i < IMEI.Length; i+=2)
+            {
+                ans += IMEI[i];
+            }
+            return ans;
         }
     }
 }
