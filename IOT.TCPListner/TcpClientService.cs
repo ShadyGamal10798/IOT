@@ -6,9 +6,10 @@ using Teltonika.Codec.Model;
 
 namespace IOT.TCPListner
 {
-    public class TcpClientService
+    public class TcpClientService :ITcpClientService
     {
         readonly TcpClient _client;
+        private List<ConnectedClient> _connectedClients = new List<ConnectedClient>();
 
         public TcpClientService(TcpClient client)
         {
@@ -25,7 +26,7 @@ namespace IOT.TCPListner
 
                 var fullPacket = new List<byte>(); // Vector
                 int? avlDataLength = null;
-
+                
                 var bytes = new byte[4096];
                 var connected = false;
                 int length;
@@ -34,7 +35,21 @@ namespace IOT.TCPListner
                 while ((length = await stream.ReadAsync(bytes, 0, bytes.Length)) != 0)
                 {
                     Console.WriteLine(string.Format("\n {0} - received [{1}] -> [{2}] \n", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()) , GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray())) ));
+                    string iemi = GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()));
+                    Console.WriteLine($"iemi::::: {iemi}");
+
                     byte[] response;
+                    
+
+                    if (!_connectedClients.Exists(i => i.TcpClient == _client))
+                    {
+                        var connectedClient = new ConnectedClient
+                        {
+                            TcpClient = _client,
+                            Imei = iemi
+                        };
+                        _connectedClients.Add(connectedClient);
+                    }
                     if (!connected)
                     {
                         // Accept imei
@@ -82,10 +97,16 @@ namespace IOT.TCPListner
                         avlDataLength = null;
                         fullPacket.Clear();
                         CalcMemory();
+                        
+
+                        
+                         var client = _connectedClients.Where(i => i.TcpClient == _client).FirstOrDefault();
+                         client.DataCount = response;
+                        
+                        
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
-                        SendCommand(stream, string.Join("", response.Select(x => x.ToString("X2")).ToArray()));
-                        Console.ReadKey();
+                        //Console.ReadKey();
                     }
 
                 }
@@ -99,26 +120,59 @@ namespace IOT.TCPListner
 
             return decoder.DecodeTcpData();
         }
-        private static async Task SendCommand(NetworkStream stream , string str)
+        public async Task SendCommandToClient(string imei, string command)
         {
+            TcpClient targetClient = GetClientByImei(imei);
 
-            //  Send command
-            // Lock
-            //00000000000000140C01050000000C7365746469676F75742031300100002ED4
+            if (targetClient != null)
+            {
+                SendCommand(targetClient, command);
+            }
+            else
+            {
+                Console.WriteLine($"Device with IMEI {imei} not found.");
+                // Handle the case when the device is not connected
+            }
 
-            //UnLock
-            //00000000000000140C01050000000C7365746469676F75742030310100007E84
-            var byteCommand = HexStringToByteArray("00000000000000140C01050000000C7365746469676F75742031300100002ED4");
-            await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
 
-            // Read and print response after sending command
-            byte[] commandResponseBuffer = new byte[100];
-            await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
-            Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
-            
-            Console.WriteLine(DecodeTcpPacket(commandResponseBuffer).AvlData);
+           
         }
+        private async Task SendCommand(TcpClient client, string command)
+        {
+            using (client)
+            {
+                using (var stream = _client.GetStream())
+                {
+                    //send 01
+                    var response = new byte[] { 01 };
+                    await stream.WriteAsync(response, 0, response.Length);
 
+                    //send packets count
+                    response = _connectedClients.FirstOrDefault(c => c.TcpClient == client)?.DataCount;
+                    await stream.WriteAsync(response, 0, response.Length);
+
+                    //  Send command
+                    // Lock
+                    //00000000000000140C01050000000C7365746469676F75742031300100002ED4
+
+                    //UnLock
+                    //00000000000000140C01050000000C7365746469676F75742030310100007E84
+                    var byteCommand = HexStringToByteArray(command);
+                    await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
+
+                    // Read and print response after sending command
+                    byte[] commandResponseBuffer = new byte[100];
+                    await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
+                    Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
+
+                    Console.WriteLine(DecodeTcpPacket(commandResponseBuffer).AvlData);
+                }
+            }
+        }
+        private TcpClient GetClientByImei(string imei)
+        {
+            return _connectedClients.FirstOrDefault(c => c.Imei == imei)?.TcpClient;
+        }
         static byte[] HexStringToByteArray(string hex)
         {
             int length = hex.Length / 2;
@@ -129,15 +183,7 @@ namespace IOT.TCPListner
             }
             return byteArray;
         }
-        static byte HexStringToByte(string hex)
-        {
-            if (hex.Length != 2)
-            {
-                throw new ArgumentException("Hex string must represent a single byte (two characters).", nameof(hex));
-            }
-
-            return Convert.ToByte(hex, 16);
-        }
+        
 
         static void CalcMemory()
         {
