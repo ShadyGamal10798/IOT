@@ -1,7 +1,9 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using Teltonika.Codec;
 using Teltonika.Codec.Model;
 
@@ -105,9 +107,7 @@ namespace IOT.TCPListner
                         // Serialize the object to JSON
                         string jsonString = JsonConvert.SerializeObject(decodedData, Formatting.Indented);
 
-                        // Print the JSON string
-                        Console.WriteLine(jsonString);
-                        Console.WriteLine("---------------------------------------------");
+                        
 
                         response = BitConverter.GetBytes(BytesSwapper.Swap(decodedData.AvlData.DataCount));
 
@@ -116,16 +116,40 @@ namespace IOT.TCPListner
                         avlDataLength = null;
                         fullPacket.Clear();
                         CalcMemory();
-                        
+                        var deserialized  = JsonConvert.DeserializeObject<object>(jsonString);
+                        foreach (var c in _connectedClients)
+                        {
+                            string message = jsonString; // jsonString contains the message you want to print
 
-                        
-                         var client = _connectedClients.Where(i => i.Imei == iemi).FirstOrDefault();
+                            string color = iemi == "863540062368775" ? "green" : "blue";
+                            string windowsPrinterPath = @"C:\Users\Administrator\source\repos\IOT\WinPrinter\bin\Debug\net7.0-windows\WinPrinter.exe";
+                            using (var clientt = new NamedPipeClientStream(".", "WinPrinterPipe", PipeDirection.Out))
+                            {
+                                try
+                                {
+                                    clientt.Connect(1000); // Timeout to avoid hanging
+                                    using (var writer = new StreamWriter(clientt))
+                                    {
+                                        writer.AutoFlush = true;
+                                        await writer.WriteAsync($"{color}:{message}"); // Write the message to the pipe
+                                    }
+                                }
+                                catch (TimeoutException)
+                                {
+                                    Console.WriteLine("Failed to connect to the pipe server.");
+                                }
+                            }
+
+                        }
+
+
+                        var client = _connectedClients.Where(i => i.Imei == iemi).FirstOrDefault();
                          client.DataCount = response;
                         
                         
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
-                        await SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4");
+                        //await SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4");
                         //Console.ReadKey();
                     }
 
