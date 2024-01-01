@@ -4,8 +4,8 @@ using IOT.TCPListner;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddTransient<System.Net.Sockets.TcpClient>();
-builder.Services.AddTransient<ITcpClientService, TcpClientService>();
+builder.Services.AddSingleton<System.Net.Sockets.TcpClient>();
+builder.Services.AddSingleton<ITcpClientService, TcpClientService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

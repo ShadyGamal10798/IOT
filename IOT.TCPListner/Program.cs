@@ -9,7 +9,9 @@ IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
         services.AddHostedService<Worker>();
-
+       
+        services.AddSingleton<System.Net.Sockets.TcpClient>();
+        services.AddSingleton<TcpClientService>();
     })
     .Build();
 

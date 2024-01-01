@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Text;
 using Teltonika.Codec;
 using Teltonika.Codec.Model;
 
@@ -9,7 +10,7 @@ namespace IOT.TCPListner
     public class TcpClientService :ITcpClientService
     {
         readonly TcpClient _client;
-        private List<ConnectedClient> _connectedClients = new List<ConnectedClient>();
+        private static List<ConnectedClient> _connectedClients = new List<ConnectedClient>();
 
         public TcpClientService(TcpClient client)
         {
@@ -35,20 +36,38 @@ namespace IOT.TCPListner
                 while ((length = await stream.ReadAsync(bytes, 0, bytes.Length)) != 0)
                 {
                     Console.WriteLine(string.Format("\n {0} - received [{1}] -> [{2}] \n", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()) , GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray())) ));
-                    string iemi = GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()));
-                    Console.WriteLine($"iemi::::: {iemi}");
+                    var iemi = "";
+                    if(!_connectedClients.Exists(i => i.TcpClient == _client))
+                    {
+                        iemi = GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()));
+                        Console.WriteLine($"iemi::::: {iemi}");
 
+                    }
+                    else
+                    {
+                        var iemiPrevious = _connectedClients.FirstOrDefault(i=>i.TcpClient == _client).Imei;
+                        iemi =iemiPrevious ;
+                    }
                     byte[] response;
                     
 
-                    if (!_connectedClients.Exists(i => i.TcpClient == _client))
+                    if (!_connectedClients.Exists(i => i.Imei == iemi))
                     {
-                        var connectedClient = new ConnectedClient
+                        if (iemi.ToString() != "")
                         {
-                            TcpClient = _client,
-                            Imei = iemi
-                        };
-                        _connectedClients.Add(connectedClient);
+                            var connectedClient = new ConnectedClient
+                            {
+                                TcpClient = _client,
+                                Imei = iemi.ToString()
+                            };
+                            _connectedClients.Add(connectedClient);
+                        }
+                        }
+                        else {
+
+                        var client = _connectedClients.FirstOrDefault(i => i.Imei == iemi);
+                        client.TcpClient = _client;
+                        iemi = client.Imei;
                     }
                     if (!connected)
                     {
@@ -100,12 +119,13 @@ namespace IOT.TCPListner
                         
 
                         
-                         var client = _connectedClients.Where(i => i.TcpClient == _client).FirstOrDefault();
+                         var client = _connectedClients.Where(i => i.Imei == iemi).FirstOrDefault();
                          client.DataCount = response;
                         
                         
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
+                        await SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4");
                         //Console.ReadKey();
                     }
 
@@ -144,12 +164,15 @@ namespace IOT.TCPListner
                 using (var stream = _client.GetStream())
                 {
                     //send 01
-                    var response = new byte[] { 01 };
-                    await stream.WriteAsync(response, 0, response.Length);
-
-                    //send packets count
-                    response = _connectedClients.FirstOrDefault(c => c.TcpClient == client)?.DataCount;
-                    await stream.WriteAsync(response, 0, response.Length);
+                    //var response = new byte[] { 01 };
+                    //await stream.WriteAsync(response, 0, response.Length);
+                    //byte[] responseFirst = new byte[100];
+                    ////await stream.ReadAsync(responseFirst, 0, responseFirst.Length);
+                    ////Console.WriteLine($"Response after 01: {BitConverter.ToString(responseFirst)}");
+                    
+                    ////send packets count
+                    //response = _connectedClients.FirstOrDefault(c => c.TcpClient == client)?.DataCount;
+                    //await stream.WriteAsync(response, 0, response.Length);
 
                     //  Send command
                     // Lock
@@ -157,6 +180,9 @@ namespace IOT.TCPListner
 
                     //UnLock
                     //00000000000000140C01050000000C7365746469676F75742030310100007E84
+
+
+                    //863540062368775
                     var byteCommand = HexStringToByteArray(command);
                     await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
 
