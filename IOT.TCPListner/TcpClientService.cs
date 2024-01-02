@@ -21,6 +21,7 @@ namespace IOT.TCPListner
 
         public async Task Run()
         {
+            
 
             using (_client)
             using (var stream = _client.GetStream())
@@ -53,6 +54,7 @@ namespace IOT.TCPListner
                     byte[] response;
                     
 
+                    
                     if (!_connectedClients.Exists(i => i.Imei == iemi))
                     {
                         if (iemi.ToString() != "")
@@ -71,6 +73,7 @@ namespace IOT.TCPListner
                         client.TcpClient = _client;
                         iemi = client.Imei;
                     }
+
                     if (!connected)
                     {
                         // Accept imei
@@ -149,7 +152,11 @@ namespace IOT.TCPListner
                         
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
-                        //await SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4");
+                        
+                         //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4","before sleep");
+                        //Thread.Sleep(9000);
+                         //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742030310100007E84","after sleep");
+
                         //Console.ReadKey();
                     }
 
@@ -170,7 +177,7 @@ namespace IOT.TCPListner
 
             if (targetClient != null)
             {
-                SendCommand(targetClient, command);
+                await SendCommand(targetClient, command);
             }
             else
             {
@@ -183,41 +190,65 @@ namespace IOT.TCPListner
         }
         private async Task SendCommand(TcpClient client, string command)
         {
-            using (client)
+            try
             {
-                using (var stream = _client.GetStream())
+                int maxTries = 10;
+                int attempt = 0;
+                using (client)
                 {
-                    //send 01
-                    //var response = new byte[] { 01 };
-                    //await stream.WriteAsync(response, 0, response.Length);
-                    //byte[] responseFirst = new byte[100];
-                    ////await stream.ReadAsync(responseFirst, 0, responseFirst.Length);
-                    ////Console.WriteLine($"Response after 01: {BitConverter.ToString(responseFirst)}");
+                    var checkConnection = _client.Connected;
+                    //while (!_client.Connected )
+                    //{
+                    //    await Task.Delay(2000);
+                    //    attempt++;
+                    //}
+                    if(_client.Connected)
+                    {
+                        using (var stream = _client.GetStream())
+                        {
+                            //send 01
+                            //var response = new byte[] { 01 };
+                            //await stream.WriteAsync(response, 0, response.Length);
+                            //byte[] responseFirst = new byte[100];
+                            ////await stream.ReadAsync(responseFirst, 0, responseFirst.Length);
+                            ////Console.WriteLine($"Response after 01: {BitConverter.ToString(responseFirst)}");
+
+                            ////send packets count
+                            //response = _connectedClients.FirstOrDefault(c => c.TcpClient == client)?.DataCount;
+                            //await stream.WriteAsync(response, 0, response.Length);
+
+                            //  Send command
+                            // Lock
+                            //00000000000000140C01050000000C7365746469676F75742031300100002ED4
+
+                            //UnLock
+                            //00000000000000140C01050000000C7365746469676F75742030310100007E84
+
+
+                            //863540062368775
+                            var byteCommand = HexStringToByteArray(command);
+                            await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
+
+                            // Read and print response after sending command
+                            byte[] commandResponseBuffer = new byte[100];
+                            await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
+                            Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
+
+                            // var dataReceived = DecodeTcpPacket(commandResponseBuffer);
+                            //string jsonString = JsonConvert.SerializeObject(dataReceived, Formatting.Indented);
+                            // Console.WriteLine("response parsed::::"+ jsonString);
+                        }
+                    }
                     
-                    ////send packets count
-                    //response = _connectedClients.FirstOrDefault(c => c.TcpClient == client)?.DataCount;
-                    //await stream.WriteAsync(response, 0, response.Length);
-
-                    //  Send command
-                    // Lock
-                    //00000000000000140C01050000000C7365746469676F75742031300100002ED4
-
-                    //UnLock
-                    //00000000000000140C01050000000C7365746469676F75742030310100007E84
-
-
-                    //863540062368775
-                    var byteCommand = HexStringToByteArray(command);
-                    await stream.WriteAsync(byteCommand, 0, byteCommand.Length);
-
-                    // Read and print response after sending command
-                    byte[] commandResponseBuffer = new byte[100];
-                    await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
-                    Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
-
-                    Console.WriteLine(DecodeTcpPacket(commandResponseBuffer).AvlData);
                 }
+                }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine("Failed to start stream of client");
             }
+            
+            
         }
         private TcpClient GetClientByImei(string imei)
         {

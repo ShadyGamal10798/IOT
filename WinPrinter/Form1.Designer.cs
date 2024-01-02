@@ -21,6 +21,17 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
             this.Text = "WinPrinter";
+            //SuspendLayout();
+            //// 
+            //// Form1
+            //// 
+            //AutoScaleDimensions = new SizeF(13F, 32F);
+            //AutoScaleMode = AutoScaleMode.Font;
+            //ClientSize = new Size(800, 450);
+            //Name = "Form1";
+            //Text = "WinPrinter";
+            //Load += Form1_Load;
+            //ResumeLayout(false);
         }
     }
 }

@@ -15,12 +15,17 @@ namespace WinPrinter
         private Label labelCountDevice2;
         private int countDevice1 = 0;
         private int countDevice2 = 0;
+        private Button buttonLockDevice1;
+        private Button buttonUnlockDevice1;
+        private Button buttonLockDevice2;
+        private Button buttonUnlockDevice2;
 
         public Form1()
         {
             InitializeComponent();
             InitializeTextBoxes();
             InitializeLabels();
+            InitializeButtons();
             StartListeningForMessages();
         }
 
@@ -91,9 +96,74 @@ namespace WinPrinter
             this.Controls.Add(labelCountDevice1);
             this.Controls.Add(labelCountDevice2);
         }
+        private void InitializeButtons()
+        {
+            // Initialize and configure the Lock Button for Device 1
+            buttonLockDevice1 = new Button
+            {
+                Text = "Lock Device 1",
+                Location = new Point(10, textBoxDevice1.Bottom + 10),
+                Size = new Size(100, 30),
+            };
+            buttonLockDevice1.Click += (sender, e) => SendCommand("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4"); // Replace with actual IMEI
+
+            // Initialize and configure the Unlock Button for Device 1
+            buttonUnlockDevice1 = new Button
+            {
+                Text = "Unlock Device 1",
+                Location = new Point(120, textBoxDevice1.Bottom + 10),
+                Size = new Size(100, 30),
+            };
+            buttonUnlockDevice1.Click += (sender, e) => SendCommand("863540062368775", "00000000000000140C01050000000C7365746469676F75742030310100007E84"); // Replace with actual IMEI
+
+            // Initialize and configure the Lock Button for Device 2
+            buttonLockDevice2 = new Button
+            {
+                Text = "Lock Device 2",
+                Location = new Point(textBoxDevice2.Left, textBoxDevice2.Bottom + 10),
+                Size = new Size(100, 30),
+            };
+            buttonLockDevice2.Click += (sender, e) => SendCommand("864636060709553", "000000000000000F0C010500000007676574696E666F0100004312"); // Replace with actual IMEI
+
+            // Initialize and configure the Unlock Button for Device 2
+            buttonUnlockDevice2 = new Button
+            {
+                Text = "Unlock Device 2",
+                Location = new Point(textBoxDevice2.Left + 110, textBoxDevice2.Bottom + 10),
+                Size = new Size(100, 30),
+            };
+            buttonUnlockDevice2.Click += (sender, e) => SendCommand("864636060709553", "000000000000000F0C010500000007676574696E666F0100004312"); // Replace with actual IMEI
+
+            // Add the buttons to the form
+            this.Controls.AddRange(new Control[] { buttonLockDevice1, buttonUnlockDevice1, buttonLockDevice2, buttonUnlockDevice2 });
+        }
+        private async Task SendCommand(string imei, string command)
+        {
+            using (var client = new NamedPipeClientStream(".", "CommandPipe", PipeDirection.Out))
+            {
+                try
+                {
+                    MessageBox.Show($"Attempting to send {command} command to IMEI: {imei}"); // For testing
+                    client.Connect(1000); // Timeout to avoid hanging
+                    using (var writer = new StreamWriter(client))
+                    {
+                        writer.AutoFlush = true;
+                        string formattedCommand = $"COMMAND:{imei}:{command}"; // Format the command
+                        await writer.WriteAsync(formattedCommand); // Write the command to the pipe
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    Console.WriteLine("Failed to connect to the pipe server.");
+                }
+            }
+        }
+
+        // ... existing StartListeningForMessages and UpdateMessage methods ...
+    
 
 
-        private void UpdateMessage(string colorCode, string message)
+private void UpdateMessage(string colorCode, string message)
         {
             this.Invoke(new Action(() =>
             {
@@ -131,6 +201,11 @@ namespace WinPrinter
                     }
                 }
             }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
