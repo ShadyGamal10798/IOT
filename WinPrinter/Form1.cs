@@ -123,7 +123,7 @@ namespace WinPrinter
                 Location = new Point(textBoxDevice2.Left, textBoxDevice2.Bottom + 10),
                 Size = new Size(100, 30),
             };
-            buttonLockDevice2.Click += (sender, e) => SendCommand("864636060709553", "000000000000000F0C010500000007676574696E666F0100004312"); // Replace with actual IMEI
+            buttonLockDevice2.Click += (sender, e) => SendCommand("864636060709553", "00000000000000140C01050000000C7365746469676F75742031300100002ED4"); // Replace with actual IMEI
 
             // Initialize and configure the Unlock Button for Device 2
             buttonUnlockDevice2 = new Button
@@ -132,7 +132,7 @@ namespace WinPrinter
                 Location = new Point(textBoxDevice2.Left + 110, textBoxDevice2.Bottom + 10),
                 Size = new Size(100, 30),
             };
-            buttonUnlockDevice2.Click += (sender, e) => SendCommand("864636060709553", "000000000000000F0C010500000007676574696E666F0100004312"); // Replace with actual IMEI
+            buttonUnlockDevice2.Click += (sender, e) => SendCommand("864636060709553", "00000000000000140C01050000000C7365746469676F75742030310100007E84"); // Replace with actual IMEI
 
             // Add the buttons to the form
             this.Controls.AddRange(new Control[] { buttonLockDevice1, buttonUnlockDevice1, buttonLockDevice2, buttonUnlockDevice2 });

@@ -1,3 +1,4 @@
+using IOT.TCPListner.Data;
 using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
@@ -51,7 +52,15 @@ namespace IOT.TCPListner
                     try
                     {
                         var client = await server.AcceptTcpClientAsync();
-                        var cw = new TcpClientService(client);
+                        try
+                        {
+                            SetKeepAlive(client);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error setting keep-alive: {ex.Message}");
+                        }
+                        var cw = new TcpClientService(client,configuration);
                         clientServices[0] = cw;  // Store the service instance in the dictionary.
                         _ = Task.Run(() => cw.Run());
 
@@ -66,6 +75,20 @@ namespace IOT.TCPListner
 
 
 
+        }
+        private void SetKeepAlive(TcpClient client)
+        {
+            int size = sizeof(uint);
+            uint time = 5000; // e.g., start sending keep-alive packets after 5 seconds of inactivity
+            uint interval = 1000; // e.g., send subsequent packets every 1 second
+
+            byte[] inOptionValues = new byte[size * 3];
+            BitConverter.GetBytes((uint)1).CopyTo(inOptionValues, 0);       // Enable keep-alive
+            BitConverter.GetBytes(time).CopyTo(inOptionValues, size);       // Time to start sending keep-alive packets
+            BitConverter.GetBytes(interval).CopyTo(inOptionValues, size * 2); // Interval between packets
+
+            client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            client.Client.IOControl(IOControlCode.KeepAliveValues, inOptionValues, null);
         }
         private static async Task StartCommandPipeServer()
         {

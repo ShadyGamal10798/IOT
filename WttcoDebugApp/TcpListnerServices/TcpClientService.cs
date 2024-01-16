@@ -1,44 +1,33 @@
-﻿using IOT.TCPListner.Data;
-using IOT.TCPListner.Data.Entities;
-using IOT.TCPListner.Data.Enums;
-using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Net.Http;
 using System.Net.Sockets;
-using System.Text;
-using System.Text.RegularExpressions;
 using Teltonika.Codec;
 using Teltonika.Codec.Model;
 
-namespace IOT.TCPListner
+namespace WttcoDebugApp.TcpListnerServices
 {
-    public class TcpClientService :ITcpClientService
+    public class TcpClientService : ITcpClientService
     {
         readonly TcpClient _client;
-        private readonly IConfiguration _configuration;
         private static List<ConnectedClient> _connectedClients = new List<ConnectedClient>();
 
-        public TcpClientService(TcpClient client,IConfiguration configuration)
+        public TcpClientService(TcpClient client)
         {
             _client = client;
-            _configuration = configuration;
         }
 
         public async Task Run()
         {
-
-
-
-            var stream = _client.GetStream();
-            
-
+            using (_client)
+            using (var stream = _client.GetStream())
+            {
+                Console.WriteLine(_client.Connected);
                 Console.WriteLine(DateTime.Now + " Received connection request from " + _client.Client.RemoteEndPoint);
 
                 var fullPacket = new List<byte>(); // Vector
                 int? avlDataLength = null;
-                
+
                 var bytes = new byte[4096];
                 var connected = false;
                 int length;
@@ -46,9 +35,9 @@ namespace IOT.TCPListner
                 // Loop to receive all the data sent by the client.
                 while ((length = await stream.ReadAsync(bytes, 0, bytes.Length)) != 0)
                 {
-                    Console.WriteLine(string.Format("\n {0} - received [{1}] -> [{2}] \n", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()) , GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray())) ));
+                    Console.WriteLine(string.Format("\n {0} - received [{1}] -> [{2}] \n", DateTime.Now, string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()), GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()))));
                     var iemi = "";
-                    if(!_connectedClients.Exists(i => i.TcpClient == _client))
+                    if (!_connectedClients.Exists(i => i.TcpClient == _client))
                     {
                         iemi = GetIMEI(string.Join("", bytes.Take(length).Select(x => x.ToString("X2")).ToArray()));
                         Console.WriteLine($"iemi::::: {iemi}");
@@ -56,13 +45,13 @@ namespace IOT.TCPListner
                     }
                     else
                     {
-                        var iemiPrevious = _connectedClients.FirstOrDefault(i=>i.TcpClient == _client).Imei;
-                        iemi =iemiPrevious ;
+                        var iemiPrevious = _connectedClients.FirstOrDefault(i => i.TcpClient == _client).Imei;
+                        iemi = iemiPrevious;
                     }
                     byte[] response;
-                    
 
-                    
+
+
                     if (!_connectedClients.Exists(i => i.Imei == iemi))
                     {
                         if (iemi.ToString() != "")
@@ -74,13 +63,12 @@ namespace IOT.TCPListner
                             };
                             _connectedClients.Add(connectedClient);
                         }
-                        }
-                        else {
+                    }
+                    else
+                    {
 
                         var client = _connectedClients.FirstOrDefault(i => i.Imei == iemi);
-                        
                         client.TcpClient = _client;
-                        
                         iemi = client.Imei;
                     }
 
@@ -120,7 +108,7 @@ namespace IOT.TCPListner
                         // Serialize the object to JSON
                         string jsonString = JsonConvert.SerializeObject(decodedData, Formatting.Indented);
 
-                        
+
 
                         response = BitConverter.GetBytes(BytesSwapper.Swap(decodedData.AvlData.DataCount));
 
@@ -129,7 +117,7 @@ namespace IOT.TCPListner
                         avlDataLength = null;
                         fullPacket.Clear();
                         CalcMemory();
-                        var deserialized  = JsonConvert.DeserializeObject<object>(jsonString);
+                        var deserialized = JsonConvert.DeserializeObject<object>(jsonString);
                         foreach (var c in _connectedClients)
                         {
                             string message = jsonString; // jsonString contains the message you want to print
@@ -153,53 +141,22 @@ namespace IOT.TCPListner
                                 }
                             }
 
-                        //add to db
-
-                        var optionsBuilder = new DbContextOptionsBuilder<ListenerDbContext>();
-                        optionsBuilder.UseSqlServer(_configuration.GetConnectionString("DefaultConnection")); 
-
-                        var options = optionsBuilder.Options;
-
-                        using (var context = new ListenerDbContext(options))
-                        {
-                            var avlDataDB = new AVLData()
-                            {
-                                IMEI = iemi,
-                                ListeningDate = DateTime.Now,
-                                CodecID = decodedData.AvlData.CodecId,
-                                DataCount = decodedData.AvlData.DataCount,
-                                Longitude = decodedData.AvlData.Data.FirstOrDefault().GpsElement.X.ToString(),
-                                Latitiude = decodedData.AvlData.Data.FirstOrDefault().GpsElement.Y.ToString(),
-                                Altitude = decodedData.AvlData.Data.FirstOrDefault().GpsElement.Altitude,
-                                Angle = decodedData.AvlData.Data.FirstOrDefault().GpsElement.Angle,
-                                Satellites = decodedData.AvlData.Data.FirstOrDefault().GpsElement.Satellites,
-                                Speed = decodedData.AvlData.Data.FirstOrDefault().GpsElement.Speed,
-                                OriginalJson = jsonString,
-                                  
-    };
-
-                            // Add the new object to the context
-                            await context.AVLsData.AddAsync(avlDataDB);
-
-                            // Save changes to the database
-                            await context.SaveChangesAsync();
-                        }
                         }
 
 
                         var client = _connectedClients.Where(i => i.Imei == iemi).FirstOrDefault();
-                         client.DataCount = response;
-                        
-                        
+                        client.DataCount = response;
+
+
 
                         Console.WriteLine(string.Format("{0} - responded [{1}]", DateTime.Now, string.Join("", response.Select(x => x.ToString("X2")).ToArray())));
-                        
-                         //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4","before sleep");
+
+                        //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742031300100002ED4","before sleep");
                         //Thread.Sleep(9000);
-                         //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742030310100007E84","after sleep");
+                        //SendCommandToClient("863540062368775", "00000000000000140C01050000000C7365746469676F75742030310100007E84","after sleep");
 
                         //Console.ReadKey();
-                    
+                    }
 
                 }
             }
@@ -218,7 +175,7 @@ namespace IOT.TCPListner
 
             if (targetClient != null)
             {
-                await SendCommand(targetClient, command,imei);
+                await SendCommand(targetClient, command);
             }
             else
             {
@@ -227,25 +184,26 @@ namespace IOT.TCPListner
             }
 
 
-           
+
         }
-        private async Task SendCommand(TcpClient client, string command, string imei)
+        private async Task SendCommand(TcpClient client, string command)
         {
             try
             {
                 int maxTries = 10;
                 int attempt = 0;
-               
+                using (client)
+                {
                     var checkConnection = _client.Connected;
                     //while (!_client.Connected )
                     //{
                     //    await Task.Delay(2000);
                     //    attempt++;
                     //}
-                    if(_client.Connected)
+                    if (_client.Connected)
                     {
-                    var stream = _client.GetStream();
-                        
+                        using (var stream = _client.GetStream())
+                        {
                             //send 01
                             //var response = new byte[] { 01 };
                             //await stream.WriteAsync(response, 0, response.Length);
@@ -273,65 +231,22 @@ namespace IOT.TCPListner
                             byte[] commandResponseBuffer = new byte[100];
                             await stream.ReadAsync(commandResponseBuffer, 0, commandResponseBuffer.Length);
                             Console.WriteLine($"Response after sending command: {BitConverter.ToString(commandResponseBuffer)}");
-                            
-                            //save command transactions
-                            var optionsBuilder = new DbContextOptionsBuilder<ListenerDbContext>();
-                            optionsBuilder.UseSqlServer(_configuration.GetConnectionString("DefaultConnection"));
 
-                            var options = optionsBuilder.Options;
-
-                            using (var context = new ListenerDbContext(options))
-                            {
-                                var commandTransaction = new CommandTransaction()
-                                {
-                                    SendingDate = DateTime.Now,
-                                    Command = CommandHelper.GetCommandFromHex(command).ToString(),
-                                    IMEI = imei,
-                                    Status = "OK"
-                                };
-
-                                    
-                                    await context.CommandTransactions.AddAsync(commandTransaction);
-                                    await context.SaveChangesAsync();
-                            }
-                        // var dataReceived = DecodeTcpPacket(commandResponseBuffer);
-                        //string jsonString = JsonConvert.SerializeObject(dataReceived, Formatting.Indented);
-                        // Console.WriteLine("response parsed::::"+ jsonString);
+                            // var dataReceived = DecodeTcpPacket(commandResponseBuffer);
+                            //string jsonString = JsonConvert.SerializeObject(dataReceived, Formatting.Indented);
+                            // Console.WriteLine("response parsed::::"+ jsonString);
+                        }
                     }
-                else
-                {
-                    //save command transactions
-                    var optionsBuilder = new DbContextOptionsBuilder<ListenerDbContext>();
-                    optionsBuilder.UseSqlServer(_configuration.GetConnectionString("DefaultConnection"));
 
-                    var options = optionsBuilder.Options;
-
-                    using (var context = new ListenerDbContext(options))
-                    {
-                        var commandTransaction = new CommandTransaction()
-                        {
-                            SendingDate = DateTime.Now,
-                            Command = CommandHelper.GetCommandFromHex(command).ToString(),
-                            IMEI = imei,
-                            Status = "Error"
-                        };
-
-
-                        await context.CommandTransactions.AddAsync(commandTransaction);
-                        await context.SaveChangesAsync();
-                    }
-                    Console.WriteLine("Falied to connect to server, please try again later");
                 }
-                    
-                
-                }
+            }
             catch (Exception ex)
             {
 
                 Console.WriteLine("Failed to start stream of client");
             }
-            
-            
+
+
         }
         private TcpClient GetClientByImei(string imei)
         {
@@ -347,11 +262,11 @@ namespace IOT.TCPListner
             }
             return byteArray;
         }
-        
+
 
         static void CalcMemory()
         {
-            Process currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+            Process currentProcess = Process.GetCurrentProcess();
             long totalBytesOfMemoryUsed = currentProcess.WorkingSet64;
 
             double totalMegabytes = (double)totalBytesOfMemoryUsed / (1024 * 1024);
@@ -371,8 +286,8 @@ namespace IOT.TCPListner
 
         static string GetIMEI(string IMEI)
         {
-            string ans="";
-            for (int i = 5; i < IMEI.Length; i+=2)
+            string ans = "";
+            for (int i = 5; i < IMEI.Length; i += 2)
             {
                 ans += IMEI[i];
             }

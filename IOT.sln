@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsolePrinter", "ConsolePr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinPrinter", "WinPrinter\WinPrinter.csproj", "{B6E066EA-8A7C-4623-AF79-BD885506273C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WttcoDebugApp", "WttcoDebugApp\WttcoDebugApp.csproj", "{FC6FA1BD-61D8-4681-B6B3-F12FACD5B072}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{B6E066EA-8A7C-4623-AF79-BD885506273C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6E066EA-8A7C-4623-AF79-BD885506273C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6E066EA-8A7C-4623-AF79-BD885506273C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC6FA1BD-61D8-4681-B6B3-F12FACD5B072}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC6FA1BD-61D8-4681-B6B3-F12FACD5B072}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC6FA1BD-61D8-4681-B6B3-F12FACD5B072}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC6FA1BD-61D8-4681-B6B3-F12FACD5B072}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
