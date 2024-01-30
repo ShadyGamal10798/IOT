@@ -236,16 +236,17 @@ namespace IOT.TCPListner
                 int maxTries = 10;
                 int attempt = 0;
                
-                    var checkConnection = _client.Connected;
+                    var checkConnection = client.Connected;
                     //while (!_client.Connected )
                     //{
                     //    await Task.Delay(2000);
                     //    attempt++;
                     //}
-                    if(_client.Connected)
+                    if(client.Connected)
                     {
-                    var stream = _client.GetStream();
-                        
+                    Console.WriteLine("Hash:::",client.Client.GetHashCode());
+                    var stream = client.GetStream();
+                    Console.WriteLine($"{imei}::::",client.GetHashCode());
                             //send 01
                             //var response = new byte[] { 01 };
                             //await stream.WriteAsync(response, 0, response.Length);
@@ -335,7 +336,8 @@ namespace IOT.TCPListner
         }
         private TcpClient GetClientByImei(string imei)
         {
-            return _connectedClients.FirstOrDefault(c => c.Imei == imei)?.TcpClient;
+            var x = _connectedClients.FirstOrDefault(c => c.Imei == imei);
+            return x.TcpClient;
         }
         static byte[] HexStringToByteArray(string hex)
         {

@@ -27,8 +27,8 @@ namespace IOT.TCPListner
                 //int decValue = Convert.ToInt16("3836", 16);
                 //Console.WriteLine(decValue);
 
-                Console.WriteLine("To Start The Listener, Click Any Key : ");
-                Console.ReadKey();
+                //Console.WriteLine("To Start The Listener, Click Any Key : ");
+                //Console.ReadKey();
 
                 //Get Ip And Port From App Settings
                 IPAddress ip = IPAddress.Parse(configuration.GetValue<string>("IpAddress"));
